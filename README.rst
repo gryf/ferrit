@@ -7,7 +7,9 @@ Ferrit
 
 ----
 
-Ferrit - fake gerrit server.
+Ferrit is a Fake Gerrit server implementation
+created for functional testing of events
+in Jenkins & Gerrit Trigger ecosystem.
 
 ----
 
