@@ -27,7 +27,7 @@ openstack
 openstack/nova
 openstack/neutron
 """
-GERRIT_CMD_VERSION = "ferrit version 2.16.7\n"
+GERRIT_CMD_VERSION = "gerrit version 2.16.7\n"
 GERRIT_SHELL_MSG = """\r
   ****    Welcome to Ferrit Code Review    ****\r
 \r
