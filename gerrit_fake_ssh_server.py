@@ -149,6 +149,7 @@ class SSHHandler(socketserver.StreamRequestHandler):
                 else:
                     # interactive session
                     channel.send_stderr(GERRIT_SHELL_MSG)
+                    channel.makefile("rU").read(1)  # wait for user interaction
                     return
 
         except Exception:
