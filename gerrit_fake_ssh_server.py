@@ -4,6 +4,7 @@ import logging
 import os
 import socketserver
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -20,6 +21,8 @@ BASE_NAME = os.path.extsep.join(os.path.basename(__file__)
 HOST_KEY = paramiko.RSAKey(filename=os.path.join(FILE_DIR,
                                                  'gerrit-server-key'),
                            password='jenkins')
+fd, FIFO = tempfile.mkstemp(suffix='.fifo', prefix='ferrit.')
+os.close(fd)
 
 GERRIT_CMD_PROJECTS = """All-Projects
 All-Users
@@ -27,7 +30,7 @@ openstack
 openstack/nova
 openstack/neutron
 """
-GERRIT_CMD_VERSION = "gerrit version 2.16.7\n"
+GERRIT_CMD_VERSION = "ferrit version 0.0.1\n"
 GERRIT_SHELL_MSG = """\r
   ****    Welcome to Ferrit Code Review    ****\r
 \r
@@ -39,18 +42,6 @@ GERRIT_SHELL_MSG = """\r
   git clone ssh://localhost:{GERRIT_PORT}/REPOSITORY_NAME.git\r
 \r
 """.format(GERRIT_PORT=PORT)
-
-GERRIT_STREAM_EVENTS = """{"submitter":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"refUpdate":{"oldRev":"0000000000000000000000000000000000000000","newRev":"9108f306de1364fa9f6f510b189b3de1c2a31365","refName":"refs/changes/33/3033/1","project":"openstack/nova"},"type":"ref-updated","eventCreatedOn":1572010525}
-{"submitter":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"refUpdate":{"oldRev":"0000000000000000000000000000000000000000","newRev":"9ad7fd292cc092b52730d92aa9db7c90f98eab9e","refName":"refs/changes/33/3033/meta","project":"openstack/nova"},"type":"ref-updated","eventCreatedOn":1572010525}
-{"uploader":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"patchSet":{"number":1,"revision":"9108f306de1364fa9f6f510b189b3de1c2a31365","parents":["eb37540e5ffd5326e18a4c72ea6660a04a368728"],"ref":"refs/changes/33/3033/1","uploader":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"createdOn":1572010523,"author":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"kind":"REWORK","sizeInsertions":1,"sizeDeletions":-1},"change":{"project":"openstack/nova","branch":"master","id":"I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953","number":3033,"subject":"Grammar quickfix.","owner":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"url":"https://gerrit-server.net/c/openstack/nova/+/3033","commitMessage":"Grammar quickfix.\\n\\nChange-Id: I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953\\n","createdOn":1572010523,"status":"NEW"},"project":"openstack/nova","refName":"refs/heads/master","changeKey":{"id":"I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953"},"type":"patchset-created","eventCreatedOn":1572010525}
-"""
-a = """
-{"submitter":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"refUpdate":{"oldRev":"9ad7fd292cc092b52730d92aa9db7c90f98eab9e","newRev":"c127a8817d8a273c2d1ad0a028fb8ed94dff679a","refName":"refs/changes/33/3033/meta","project":"openstack/nova"},"type":"ref-updated","eventCreatedOn":1572010528}
-{"reviewer":{"name":"Other Guy","email":"other.guy@nonexistent.com","username":"other.guy"},"patchSet":{"number":1,"revision":"9108f306de1364fa9f6f510b189b3de1c2a31365","parents":["eb37540e5ffd5326e18a4c72ea6660a04a368728"],"ref":"refs/changes/33/3033/1","uploader":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"createdOn":1572010523,"author":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"kind":"REWORK","sizeInsertions":1,"sizeDeletions":-1},"change":{"project":"openstack/nova","branch":"master","id":"I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953","number":3033,"subject":"Grammar quickfix.","owner":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"url":"https://gerrit-server.net/c/openstack/nova/+/3033","commitMessage":"Grammar quickfix.\n\nChange-Id: I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953\n","createdOn":1572010523,"status":"NEW"},"project":"openstack/nova","refName":"refs/heads/master","changeKey":{"id":"I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953"},"type":"reviewer-added","eventCreatedOn":1572010528}
-{"submitter":{"name":"Jenkins","email":"jenkins@gerrit-server.net","username":"jenkins"},"refUpdate":{"oldRev":"c127a8817d8a273c2d1ad0a028fb8ed94dff679a","newRev":"c2f1105cf159b0a2812096c5803e07ebb7c7407f","refName":"refs/changes/33/3033/meta","project":"openstack/nova"},"type":"ref-updated","eventCreatedOn":1572010535}
-{"author":{"name":"Jenkins","email":"jenkins@gerrit-server.net","username":"jenkins"},"approvals":[{"type":"Verified","description":"Verified","value":"0"},{"type":"Code-Review","description":"Code-Review","value":"0"},{"type":"Workflow","description":"Workflow","value":"0"}],"comment":"Patch Set 1:\n\nBuild Started https://jenkins.dev.cloud.company.net/job/Review/job/Unit-tests/5752//console","patchSet":{"number":1,"revision":"9108f306de1364fa9f6f510b189b3de1c2a31365","parents":["eb37540e5ffd5326e18a4c72ea6660a04a368728"],"ref":"refs/changes/33/3033/1","uploader":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"createdOn":1572010523,"author":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"kind":"REWORK","sizeInsertions":1,"sizeDeletions":-1},"change":{"project":"openstack/nova","branch":"master","id":"I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953","number":3033,"subject":"Grammar quickfix.","owner":{"name":"Some Author","email":"some.author@nonexistent.com","username":"some.author"},"url":"https://gerrit-server.net/c/openstack/nova/+/3033","commitMessage":"Grammar quickfix.\n\nChange-Id: I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953\n","createdOn":1572010523,"status":"NEW"},"project":"openstack/nova","refName":"refs/heads/master","changeKey":{"id":"I920acf0faf8f78f5c1b4a5bc86e3715e2df4b953"},"type":"comment-added","eventCreatedOn":1572010535}
-"""
-
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
@@ -168,11 +159,14 @@ class SSHHandler(socketserver.StreamRequestHandler):
                         channel.close()
 
                     elif cmd == 'gerrit stream-events':
-                        LOG.debug('sending events from queue...')
-                        while True:
-                            time.sleep(10)
-                            channel.send(GERRIT_STREAM_EVENTS)
-                            pass # TODO: implement queue or something here
+                        with open(FIFO) as fobj:
+                            data = fobj.read()
+                        if not data:
+                            time.sleep(1)
+                        else:
+                            LOG.debug("Writing %s to channel", data)
+                            channel.send(data)
+                            data = None
 
                     else:
                         LOG.debug('unknown command -- closing channel')
@@ -191,9 +185,13 @@ class SSHHandler(socketserver.StreamRequestHandler):
 
 
 def main():
-    sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT),
-                                                SSHHandler)
-    sshserver.serve_forever()
+    try:
+        sys.stdout.write('Opening named FIFO queue: %s\n' % FIFO)
+        sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT),
+                                                    SSHHandler)
+        sshserver.serve_forever()
+    finally:
+        os.remove(FIFO)
 
 
 if __name__ == "__main__":
