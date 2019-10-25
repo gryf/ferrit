@@ -8,14 +8,18 @@ import sys
 import threading
 import time
 import traceback
+import logging
 
 import paramiko
 from paramiko.py3compat import u
 
-#PORT = 29418
-PORT = 2200
 
-host_key = paramiko.RSAKey(filename=os.path.join(os.path.dirname(__file__),
+PORT = 2200  # it could be even 29418, which is standard gerrit port
+
+FILE_DIR = os.path.dirname(__file__)
+BASE_NAME = os.path.extsep.join(os.path.basename(__file__)
+                                .split(os.path.extsep)[:-1])
+HOST_KEY = paramiko.RSAKey(filename=os.path.join(FILE_DIR,
                                                  'gerrit-server-key'),
                            password='jenkins')
 
@@ -32,6 +36,13 @@ GERRIT_SHELL_MSG = """
   Unfortunately, interactive shells are disabled.\r
 \r
 """
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
+handler = logging.FileHandler(os.path.join(FILE_DIR, BASE_NAME + '.log'))
+handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
+                                       '%(filename)s:%(lineno)s - '
+                                       '%(message)s'))
+LOG.addHandler(handler)
 
 
 class Server(paramiko.ServerInterface):
@@ -41,7 +52,7 @@ class Server(paramiko.ServerInterface):
         self.client_address = client_address
 
     def check_channel_request(self, kind, chanid):
-        print('Kind: %s, chanid: %s', kind, chanid)
+        LOG.debug('Kind: %s, chanid: %s', kind, chanid)
         if kind == 'session':
             return paramiko.OPEN_SUCCEEDED
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
@@ -56,13 +67,13 @@ class Server(paramiko.ServerInterface):
         return paramiko.AUTH_SUCCESSFUL
 
     def check_channel_exec_request(self, channel, command):
-        print("stack: %s", inspect.stack()[0][3])
+        LOG.debug(inspect.stack()[0][3])
         self.command = command
         self.event.set()
         return True
 
     def check_channel_shell_request(self, channel):
-        print(inspect.stack()[0][3])
+        LOG.debug(inspect.stack()[0][3])
         self.command = None
         self.event.set()
         return True
@@ -88,7 +99,7 @@ class Server(paramiko.ServerInterface):
         return True
 
     def check_channel_env_request(self, channel, name, value):
-        print("channel: %s, name: %s, value: %s", channel, name, value)
+        LOG.debug("channel: %s, name: %s, value: %s", channel, name, value)
         return True
 
     def check_channel_pty_request(self, channel, term, width, height,
@@ -101,7 +112,7 @@ class SSHHandler(socketserver.StreamRequestHandler):
         self._prev = None
         try:
             transport = paramiko.Transport(self.connection)
-            transport.add_server_key(host_key)
+            transport.add_server_key(HOST_KEY)
             server = Server(self.client_address)
             try:
                 transport.start_server(server=server)
@@ -109,28 +120,21 @@ class SSHHandler(socketserver.StreamRequestHandler):
                 return
 
             while True:
-                print('powstaje kanał')
-
                 # wait for auth
                 channel = transport.accept(20)
                 if channel is None:
                     transport.close()
                     return 1
 
-                print('czekanie na coś')
-
                 server.event.wait(10)
                 if not server.event.is_set():
                     transport.close()
                     return 1
 
-                print('coś przyszło!\n')
-
-                __import__('pdb').set_trace()
                 if server.command:
-                    print('server_command %s' % server.command.decode('utf-8'))
-                    print('%s' %
-                          COMMANDS_MAP.get(server.command.decode('utf-8')))
+                    LOG.debug('server_command %s, mapped to: %s',
+                              server.command.decode('utf-8'),
+                              COMMANDS_MAP.get(server.command.decode('utf-8')))
 
                     cmd = server.command.decode('utf-8')
 
@@ -143,40 +147,42 @@ class SSHHandler(socketserver.StreamRequestHandler):
                     else:
                         channel.close()
                 else:
-                    __import__('pdb').set_trace()
                     channel.send_stderr(GERRIT_SHELL_MSG)
                     fobj = channel.makefile("rU")
                     fobj.read(1)
-                    print(fobj.read(1))
-                    print(fobj.read(1))
-                    print(fobj.read(1))
+                    LOG.debug('Why we log this? %s %s %s', fobj.read(1),
+                              fobj.read(1), fobj.read(1))
                     while True:
-                        r, w, e = select.select([channel, sys.stdin], [], [])
-                        if channel in r:
+                        readl, _, _ = select.select([channel, sys.stdin],
+                                                    [], [])
+                        if channel in readl:
                             try:
-                                x = u(channel.recv(1024))
-                                if len(x) == 0:
+                                chunk = u(channel.recv(1024))
+                                if len(chunk) == 0:
                                     sys.stdout.write("\r\n*** EOF\r\n")
                                     break
-                                sys.stdout.write(x)
+                                sys.stdout.write(chunk)
                                 sys.stdout.flush()
                             except socket.timeout:
                                 pass
-                        if sys.stdin in r:
-                            x = sys.stdin.read(1)
-                            if len(x) == 0:
+                        if sys.stdin in readl:
+                            input_ = sys.stdin.read(1)
+                            if len(input_) == 0:
                                 break
-                            channel.send(x)
+                            channel.send(input_)
 
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
         finally:
-            try:
-                # channel.close()
-                transport.close()
-            except:
-                pass
+            # channel.close()
+            transport.close()
 
 
-sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT), SSHHandler)
-sshserver.serve_forever()
+def main():
+    sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT),
+                                                SSHHandler)
+    sshserver.serve_forever()
+
+
+if __name__ == "__main__":
+    main()
