@@ -99,7 +99,7 @@ class Server(paramiko.ServerInterface):
 
     def check_global_request(self, kind, msg):
         LOG.debug('%s', inspect.stack()[0][3])
-        LOG.debug('kind: %s, msg: %s', kind, str(msg))
+        LOG.debug('kind: %s, msg: %s', kind, msg.get_text())
         return True
 
     def check_channel_env_request(self, channel, name, value):
