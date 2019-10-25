@@ -147,13 +147,13 @@ class SSHHandler(socketserver.StreamRequestHandler):
                     else:
                         channel.close()
                 else:
+                    # interactive session
                     channel.send_stderr(GERRIT_SHELL_MSG)
-                    channel.close()
+                    return
 
         except Exception:
             traceback.print_exc()
         finally:
-            # channel.close()
             transport.close()
 
 
