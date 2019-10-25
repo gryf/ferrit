@@ -148,28 +148,7 @@ class SSHHandler(socketserver.StreamRequestHandler):
                         channel.close()
                 else:
                     channel.send_stderr(GERRIT_SHELL_MSG)
-                    fobj = channel.makefile("rU")
-                    fobj.read(1)
-                    LOG.debug('Why we log this? %s %s %s', fobj.read(1),
-                              fobj.read(1), fobj.read(1))
-                    while True:
-                        readl, _, _ = select.select([channel, sys.stdin],
-                                                    [], [])
-                        if channel in readl:
-                            try:
-                                chunk = u(channel.recv(1024))
-                                if len(chunk) == 0:
-                                    sys.stdout.write("\r\n*** EOF\r\n")
-                                    break
-                                sys.stdout.write(chunk)
-                                sys.stdout.flush()
-                            except socket.timeout:
-                                pass
-                        if sys.stdin in readl:
-                            input_ = sys.stdin.read(1)
-                            if len(input_) == 0:
-                                break
-                            channel.send(input_)
+                    channel.close()
 
         except Exception:
             traceback.print_exc()
