@@ -1,2 +1,3 @@
 .venv/
 *.swp
+gerrit_fake_ssh_server.log
