@@ -31,11 +31,19 @@ def projects(params=None):
                                          "target": "_blank"}]}}
 
 
-@bottle.post('/a/changes')
-def changes(param=None):
-    print(param)
-    print(bottle.request.json)
-    pass
+@bottle.post('/a/changes/<project>~<branch>~<id>/revisions/<commit_id>/review')
+def changes(project, branch, id, commit_id):
+    # We are looking for labels in the json
+    labels = bottle.request.json.get('labels', {})
+    if not labels:
+        return
+
+    # TODO(gryf): It's on gerrit side now. What we do with this information on
+    # Ferrit? Verified is either 1 or -1, which indicates build in jenkins
+    if labels.get('Verified') == 1:
+        return True
+    else:
+        return False
 
 
 @bottle.route('/a/plugins/events-log/events/')
