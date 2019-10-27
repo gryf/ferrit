@@ -23,6 +23,7 @@ HOST_KEY = paramiko.RSAKey(filename=os.path.join(FILE_DIR,
                            password='jenkins')
 fd, FIFO = tempfile.mkstemp(suffix='.fifo', prefix='ferrit.')
 os.close(fd)
+os.unlink(FIFO)
 
 GERRIT_CMD_PROJECTS = """All-Projects
 All-Users
@@ -186,6 +187,7 @@ class SSHHandler(socketserver.StreamRequestHandler):
 
 def main():
     try:
+        os.mkfifo(FIFO)
         sys.stdout.write('Opening named FIFO queue: %s\n' % FIFO)
         sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT),
                                                     SSHHandler)
