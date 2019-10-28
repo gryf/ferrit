@@ -1,10 +1,8 @@
-#!/usr/bin/env python
 import inspect
 import logging
 import os
 import socketserver
 import sys
-import tempfile
 import threading
 import time
 import traceback
@@ -12,24 +10,21 @@ import traceback
 import paramiko
 
 
+# This global variable meant to be set in module, which imports this one
+FIFO = None
+
 # it could be even 29418, which is standard gerrit port
 PORT = 2200
 
 FILE_DIR = os.path.dirname(__file__)
 BASE_NAME = os.path.extsep.join(os.path.basename(__file__)
                                 .split(os.path.extsep)[:-1])
-HOST_KEY = paramiko.RSAKey(filename=os.path.join(FILE_DIR,
-                                                 'gerrit-server-key'),
-                           password='jenkins')
-fd, FIFO = tempfile.mkstemp(suffix='.fifo', prefix='ferrit.')
-os.close(fd)
-os.unlink(FIFO)
+# TODO(gryf): make the path to the key configurable
+HOST_KEY = paramiko.RSAKey(filename='gerrit-server-key', password='jenkins')
 
 GERRIT_CMD_PROJECTS = """All-Projects
 All-Users
-openstack
-openstack/nova
-openstack/neutron
+example
 """
 GERRIT_CMD_VERSION = "ferrit version 0.0.1\n"
 GERRIT_SHELL_MSG = """\r
@@ -47,11 +42,6 @@ GERRIT_SHELL_MSG = """\r
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 handler = logging.FileHandler(os.path.join(FILE_DIR, BASE_NAME + '.log'))
-handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
-                                       '%(filename)s:%(lineno)s - '
-                                       '%(message)s'))
-LOG.addHandler(handler)
-handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
                                        '%(filename)s:%(lineno)s - '
                                        '%(message)s'))
@@ -186,15 +176,15 @@ class SSHHandler(socketserver.StreamRequestHandler):
 
 
 def main():
-    try:
-        os.mkfifo(FIFO)
-        sys.stdout.write('Opening named FIFO queue: %s\n' % FIFO)
-        sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT),
-                                                    SSHHandler)
-        sshserver.serve_forever()
-    finally:
-        os.remove(FIFO)
+    sshserver = socketserver.ThreadingTCPServer(('127.0.0.1', PORT),
+                                                SSHHandler)
+    sshserver.serve_forever()
 
 
 if __name__ == "__main__":
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
+                                           '%(filename)s:%(lineno)s - '
+                                           '%(message)s'))
+    LOG.addHandler(handler)
     main()

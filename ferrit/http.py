@@ -4,6 +4,8 @@ import os
 import bottle
 
 
+# This global variable meant to be set in module, which imports this one
+FIFO = None
 FILE_DIR = os.path.dirname(__file__)
 BASE_NAME = os.path.extsep.join(os.path.basename(__file__)
                                 .split(os.path.extsep)[:-1])
@@ -19,16 +21,12 @@ LOG.addHandler(handler)
 class App(bottle.Bottle):
     def __init__(self):
         super(App, self).__init__()
-        self.get('/<cos>', callback=self._hello)
         self.route('/Documentation/<whatever>', callback=self._documentation)
         self.route('/plugins/events-log/', callback=self._events_log)
         self.route('/plugins/events-log/events/', callback=self._events)
         self.route('/a/projects/', callback=self._projects)
         self.post('/a/changes/<project>~<branch>~<id>/revisions/<commit_id>'
                   '/review', callback=self._changes)
-
-    def _hello(self, cos):
-        return {'data': {'foo': 'bar', 'baz': True, 'param': cos}}
 
     def _documentation(self, whatever, params=None):
         return ''
@@ -37,7 +35,6 @@ class App(bottle.Bottle):
         return ''
 
     def _events(self, t1=None):
-        __import__('pdb').set_trace()
         return {}
 
     def _projects(params=None):
@@ -56,9 +53,15 @@ class App(bottle.Bottle):
                               "description": "users",
                               "state": "ACTIVE",
                               "web_links": [{"name": "browse",
-                                             "url": "/plugins/gitiles/i"
+                                             "url": "/plugins/gitiles/"
                                              "All-Users",
-                                             "target": "_blank"}]}}
+                                             "target": "_blank"}]},
+                "example": {"id": "example",
+                            "description": "example ptoject",
+                            "state": "ACTIVE",
+                            "web_links": [{"name": "browse",
+                                           "url": "/plugins/gitiles/example",
+                                           "target": "_blank"}]}}
 
     def _changes(self, project, branch, id, commit_id):
         # We are looking for labels in the json
@@ -74,8 +77,11 @@ class App(bottle.Bottle):
 
 def main():
     app = App()
-    app.run(port=8181, host='localhost', debug=True)
+    app.run(port=8181, host='localhost', debug=False, quiet=True)
 
 
 if __name__ == "__main__":
-    main()
+    # development version, meant to be run as stand alone module, like
+    # python -m ferrit.http
+    app = App()
+    app.run(port=8181, host='localhost', debug=True, reloader=True)
