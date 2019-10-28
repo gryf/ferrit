@@ -2,3 +2,5 @@
 *.swp
 gerrit_fake_ssh_server.log
 jenkins.war
+ferrit.egg-info
+.tox
