@@ -1,6 +1,7 @@
 .venv/
 *.swp
-gerrit_fake_ssh_server.log
-jenkins.war
+*.log
 ferrit.egg-info
 .tox
+__pycache__/
+*.py[cod]
