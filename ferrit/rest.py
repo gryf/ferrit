@@ -6,12 +6,11 @@ import bottle
 
 # This global variable meant to be set in module, which imports this one
 FIFO = None
-FILE_DIR = os.path.dirname(__file__)
-BASE_NAME = os.path.extsep.join(os.path.basename(__file__)
-                                .split(os.path.extsep)[:-1])
+LOG_PATH = './'
+
 LOG = logging.getLogger('bottle')
 LOG.setLevel(logging.DEBUG)
-handler = logging.FileHandler(os.path.join(FILE_DIR, BASE_NAME + '.log'))
+handler = logging.FileHandler(os.path.join(LOG_PATH, 'ferrit-http.log'))
 handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
                                        '%(filename)s:%(lineno)s - '
                                        '%(message)s'))

@@ -1,4 +1,3 @@
-import inspect
 import logging
 import os
 import socketserver
@@ -10,17 +9,13 @@ import traceback
 import paramiko
 
 
-# This global variable meant to be set in module, which imports this one
-FIFO = None
+# Those global variables meant to be set in parent module
+FIFO = 'ferrit.fifo'
+LOG_PATH = './'
+KEY = './gerrit-server-key'
 
 # it could be even 29418, which is standard gerrit port
 PORT = 2200
-
-FILE_DIR = os.path.dirname(__file__)
-BASE_NAME = os.path.extsep.join(os.path.basename(__file__)
-                                .split(os.path.extsep)[:-1])
-# TODO(gryf): make the path to the key configurable
-HOST_KEY = paramiko.RSAKey(filename='gerrit-server-key', password='jenkins')
 
 GERRIT_CMD_PROJECTS = """All-Projects
 All-Users
@@ -41,70 +36,60 @@ GERRIT_SHELL_MSG = """\r
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
-handler = logging.FileHandler(os.path.join(FILE_DIR, BASE_NAME + '.log'))
+handler = logging.FileHandler(os.path.join(LOG_PATH, 'ferrit-ssh.log'))
 handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
-                                       '%(filename)s:%(lineno)s - '
-                                       '%(message)s'))
+                                       '%(filename)s:%(lineno)s %(funcName)s '
+                                       '- %(message)s'))
 LOG.addHandler(handler)
 
 
 class Server(paramiko.ServerInterface):
     def __init__(self, client_address):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('client_address: %s', client_address)
         self.command = None
         self.event = threading.Event()
         self.client_address = client_address
 
     def check_channel_request(self, kind, chanid):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('kind: %s, chanid: %s', kind, chanid)
         if kind == 'session':
             return paramiko.OPEN_SUCCEEDED
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def get_allowed_auths(self, username):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('username: %s', username)
         return "password,publickey"
 
     def check_auth_password(self, username, password):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('username: %s, password: %s', username, password)
         return paramiko.AUTH_SUCCESSFUL
 
     def check_auth_publickey(self, username, key):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('username: %s, key: %s', username, str(key)[:11])
         return paramiko.AUTH_SUCCESSFUL
 
     def check_channel_exec_request(self, channel, command):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('channel: %s, command: %s', channel.get_id(), command)
         self.command = command
         self.event.set()
         return True
 
     def check_channel_shell_request(self, channel):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('channel: %s', channel.get_id())
         self.event.set()
         return True
 
     def check_global_request(self, kind, msg):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug('kind: %s, msg: %s', kind, msg.get_text())
         return True
 
     def check_channel_env_request(self, channel, name, value):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug("channel: %s, name: %s, value: %s",
                   channel.get_id(), name, value)
         return True
 
     def check_channel_pty_request(self, channel, term, width, height,
                                   pixelwidth, pixelheight, modes):
-        LOG.debug('%s', inspect.stack()[0][3])
         LOG.debug("channel: %s, term: %s, width: %s, height: %s, "
                   "pixelwidth: %s, pixelheight: %s, modes: %s",
                   channel.get_id(), term, width, height,
@@ -182,9 +167,14 @@ def main():
 
 
 if __name__ == "__main__":
+    os.mkfifo(FIFO)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
-                                           '%(filename)s:%(lineno)s - '
+                                           '%(funcName)s:%(lineno)s - '
                                            '%(message)s'))
     LOG.addHandler(handler)
-    main()
+    LOG.debug('Start up development server')
+    try:
+        main()
+    finally:
+        os.unlink(FIFO)
