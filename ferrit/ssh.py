@@ -34,13 +34,15 @@ GERRIT_SHELL_MSG = """\r
 \r
 """.format(GERRIT_PORT=PORT)
 
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
-handler = logging.FileHandler(os.path.join(LOG_PATH, 'ferrit-ssh.log'))
-handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
-                                       '%(filename)s:%(lineno)s %(funcName)s '
-                                       '- %(message)s'))
-LOG.addHandler(handler)
+
+if __name__ != "__main__":
+    LOG = logging.getLogger(__name__)
+    LOG.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(os.path.join(LOG_PATH, 'ferrit-ssh.log'))
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
+                                           '%(filename)s:%(lineno)s '
+                                           '%(funcName)s - %(message)s'))
+    LOG.addHandler(handler)
 
 
 class Server(paramiko.ServerInterface):
@@ -98,10 +100,37 @@ class Server(paramiko.ServerInterface):
 
 
 class SSHHandler(socketserver.StreamRequestHandler):
+
+    def __init__(self, request, client_address, server):
+        self._commands = {'gerrit version': self._version,
+                          'gerrit ls-projects': self._ls_projects,
+                          'gerrit stream-events': self._stream_events}
+        super(SSHHandler, self).__init__(request, client_address, server)
+
+    def _stream_events(self, channel):
+        with open(FIFO) as fobj:
+            data = fobj.read()
+        if not data:
+            time.sleep(1)
+        else:
+            LOG.debug("Writing %s to channel", data)
+            channel.send(data)
+            data = None
+
+    def _version(self, channel):
+        LOG.debug('sending version string')
+        channel.send(GERRIT_CMD_VERSION)
+        channel.close()
+
+    def _ls_projects(self, channel):
+        LOG.debug('sending list of projects')
+        channel.send(GERRIT_CMD_PROJECTS)
+        channel.close()
+
     def handle(self):
         try:
             transport = paramiko.Transport(self.connection)
-            transport.add_server_key(HOST_KEY)
+            transport.add_server_key(paramiko.RSAKey(filename=KEY))
             server = Server(self.client_address)
             try:
                 transport.start_server(server=server)
@@ -122,32 +151,17 @@ class SSHHandler(socketserver.StreamRequestHandler):
 
                 if server.command:
                     cmd = server.command.decode('utf-8')
-                    LOG.debug('received server command: %s', cmd)
-
-                    if cmd == 'gerrit version':
-                        LOG.debug('sending version string')
-                        channel.send(GERRIT_CMD_VERSION)
+                    if cmd in self._commands:
+                        self._commands[cmd](channel)
+                    elif cmd.startswith('git-upload-pack '):
+                        # we suppose to transfer somehow data from some git
+                        # repository
+                        LOG.debug('Cloning (well, no) repository %s',
+                                  cmd.split(' ')[1][1:-1])
                         channel.close()
-
-                    elif cmd == 'gerrit ls-projects':
-                        LOG.debug('sending list of projects')
-                        channel.send(GERRIT_CMD_PROJECTS)
-                        channel.close()
-
-                    elif cmd == 'gerrit stream-events':
-                        with open(FIFO) as fobj:
-                            data = fobj.read()
-                        if not data:
-                            time.sleep(1)
-                        else:
-                            LOG.debug("Writing %s to channel", data)
-                            channel.send(data)
-                            data = None
-
                     else:
                         LOG.debug('unknown command -- closing channel')
                         channel.close()
-
                 else:
                     LOG.debug('requested interactive session')
                     channel.send_stderr(GERRIT_SHELL_MSG)
@@ -167,11 +181,19 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-k', '--key', default=KEY,
+                        help='Path to the private server key')
+    args = parser.parse_args()
+    KEY = args.key
     os.mkfifo(FIFO)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
                                            '%(funcName)s:%(lineno)s - '
                                            '%(message)s'))
+    LOG = logging.getLogger(__name__)
+    LOG.setLevel(logging.DEBUG)
     LOG.addHandler(handler)
     LOG.debug('Start up development server')
     try:
