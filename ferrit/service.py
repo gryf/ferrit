@@ -23,16 +23,16 @@ def main():
                         'exists. Default location is current directory.')
 
     args = parser.parse_args()
+
     ssh.KEY = args.key
-    ssh.LOG_PATH = args.log_path
-    rest.LOG_PATH = args.log_path
+    rest.LOG_PATH = ssh.LOG_PATH = args.log_path
 
     fd, fifo = tempfile.mkstemp(suffix='.fifo', prefix='ferrit.')
     os.close(fd)
     os.unlink(fifo)
     os.mkfifo(fifo)
-    ssh.FIFO = fifo
-    rest.FIFO = fifo
+    ssh.FIFO = rest.FIFO = fifo
+
     try:
         p1 = multiprocessing.Process(target=ssh.main)
         p1.daemon = True
@@ -43,7 +43,7 @@ def main():
 
         p1.join()
         p2.join()
-    except Exception:
+    finally:
         os.unlink(fifo)
 
 
