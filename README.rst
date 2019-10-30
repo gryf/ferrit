@@ -14,8 +14,7 @@ events in Jenkins & Gerrit Trigger ecosystem.
 Architecture
 ------------
 
-Ferrit consists of two servers, http and ssh and companion script for
-generating payload for the ssh server.
+Ferrit consists of two servers, http and ssh.
 
 We relay on real Jenkins installation, so it has to be configured up front. See
 next section for details.
