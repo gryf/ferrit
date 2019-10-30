@@ -45,10 +45,15 @@ executed.
 Installation
 ------------
 
-Prerequisites
-=============
+Jenkins
+=======
 
-.. TODO (jenkins, plugins installation and configuration)
+We are referring to Jenkins here but it might be any kind of CI system who is
+willing to react on certain events, gerrit server could provide.
+
+In case of Jenkins, we assume that at least `gerrit trigger` plugin is
+installed within, and there are jobs which are properly configured to be
+triggered by such event.
 
 SSH keys
 ========
@@ -68,6 +73,10 @@ but for 7.8 and up:
 .. code:: shell-session
 
    $ ssh-keygen -f gerrit-server-key -m pem
+
+Jenkins needs to have a key to access ferrit server. So there is a need for
+generating two pair keys one pair for the server, one for the client - Jenkins
+or any other CI system.
 
 Python
 ======
@@ -114,3 +123,4 @@ Please note, Python 2.x is not supported.
 .. _Ferrite image: https://www.flickr.com/photos/picofarad-org/2132206570/
 .. _paramiko: https://www.paramiko.org/
 .. _bottle: https://bottlepy.org
+.. _gerrit trigger: https://wiki.jenkins.io/display/JENKINS/Gerrit+Trigger
