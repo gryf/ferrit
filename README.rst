@@ -88,6 +88,24 @@ dependencies will be installed automatically.
 
 Please note, Python 2.x is not supported.
 
+.. Technical stuff.
+
+   Turns out that we cannot simply push repo archive to the channel.send(),
+   since git client expects something like this:
+
+   0008NAK
+   0023^BEnumerating objects: 3, done.
+   0080^BCounting objects:  33% (1/3)^MCounting objects:  66% (2/3)^MCounting
+   objects: 100% (3/3)^MCounting objects: 100% (3/3), done.
+   002b^BTotal 3 (delta 0), reused 0 (delta 0)
+   00da^APACK^@^@^@^B^@^@^@^C<91>
+   x<9c><95>ËA
+   Â0^PFá}N1{A<92>L<9b>¿^E^Q·^^#5<93>^Zh<8c><84>qÑÛW<8f>àæ->xÚEh^AØqÂ"^\B°sJ^<80>^Xç<90><90>^S8^Oâ1<8d>lâG<9f>­ÓÚ÷L<97>_Á·µÆ²<9d>^_­^É<8d>ð^COp<96>NÖYk¾Z<8b>ªü±<98>û«h<89>^[<95>ún]Í^A&S/Å¢^Bx<9c>340031Q^Hrutñ>ueh¬8<9e><9b>T³öy^@ë^VvÁ<9d>ú<8e>å{rþ^@^@µø^L<82>7x<9c>+JMLÉMå^B^@^K^S^ByRÕBs<96><93>.Ñê<Òs^Kd^]ðüdÛ0006^Aà0000
+
+   Note, that it consists of two parts - first is a text which client will
+   display on the console, and second part is a PACK, which is a packed diff
+   between objects client requested.
+
 ----
 
 `Ferrite image`_ by Karl-Martin Skontorp is on Attribution 2.0 Generic (CC BY
