@@ -14,44 +14,105 @@ LOG_PATH = './'
 LOG = logging.getLogger('bottle')
 LOG.setLevel(logging.DEBUG)
 handler = logging.FileHandler(os.path.join(LOG_PATH, 'ferrit-http.log'))
-handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+handler.setFormatter(logging.Formatter('%(message)s'))
 LOG.addHandler(handler)
 
-
+JDOE = {"email": "j.doe@nonexistent.com",
+        "name": "John Doe",
+        "username": "jdoe"}
 PATCHSET_CREATED = {"change": {"branch": "master",
                                "commitMessage": "commit msg",
                                "id": "I1",
-                               "number": "691277",
-                               "owner": {"email": "j.doe@nonexistent.com",
-                                         "name": "John Doe",
-                                         "username": "jdoe"},
+                               "number": "1",
+                               "owner": JDOE,
                                "project": "foo",
                                "status": "NEW",
                                "subject": "create new patch",
                                "url": "http://localhost:8181/1"},
                     "changeKey": {"id": "I1"},
                     "eventCreatedOn": int(time.time()),
-                    "patchSet": {"author": {"email": "j.doe@nonexistent.com",
-                                            "name": "John Doe",
-                                            "username": "jdoe"},
+                    "patchSet": {"author": JDOE,
                                  "createdOn": int(time.time()) - 1000,
                                  "isDraft": False,
                                  "kind": "REWORK",
                                  "number": "1",
-                                 "parents": ["559721d9"],
-                                 "ref": "refs/changes/77/691277/1",
+                                 "parents": ["2"],
+                                 "ref": "refs/changes/77/1/1",
                                  "revision": "e3c8ac50",
                                  "sizeDeletions": -15,
                                  "sizeInsertions": 29,
-                                 "uploader": {"email": "j.doe@nonexistent.com",
-                                              "name": "John Doe",
-                                              "username": "jdoe"}},
+                                 "uploader": JDOE},
                     "project": "foo",
                     "refName": "refs/heads/master",
                     "type": "patchset-created",
-                    "uploader": {"email": "j.doe@nonexistent.com",
-                                 "name": "John Doe",
-                                 "username": "jdoe"}}
+                    "uploader": JDOE}
+RECHECK = {"approvals": [{"description": "Verified",
+                          "type": "Verified",
+                          "value": "0"},
+                         {"description": "Code-Review",
+                          "type": "Code-Review",
+                          "value": "0"},
+                         {"description": "Workflow",
+                          "type": "Workflow",
+                          "value": "0"}],
+           "author": JDOE,
+           "change": {"branch": "master",
+                      "commitMessage": "commit msg",
+                      "id": "I1",
+                      "number": "690077",
+                      "owner": JDOE,
+                      "project": "foo",
+                      "status": "NEW",
+                      "subject": "create new patch",
+                      "topic": "test",
+                      "url": "http://localhost:8181/1"},
+           "changeKey": {"id": "I1"},
+           "comment": "Patch Set 1:\n\nrecheck",
+           "eventCreatedOn": int(time.time()),
+           "patchSet": {"author": JDOE,
+                        "createdOn": int(time.time()) - 1000,
+                        "isDraft": False,
+                        "kind": "NO_CODE_CHANGE",
+                        "number": "1",
+                        "parents": ["2"],
+                        "ref": "refs/changes/77/1/1",
+                        "revision": "e3c8ac50",
+                        "sizeDeletions": -15,
+                        "sizeInsertions": 29,
+                        "uploader": JDOE},
+           "project": "foo",
+           "refName": "refs/heads/master",
+           "type": "comment-added"}
+MERGED = {"change": {"branch": "master",
+                     "commitMessage": "commit msg",
+                     "id": "I1",
+                     "number": "1",
+                     "owner": JDOE,
+                     "project": "foo",
+                     "status": "MERGED",
+                     "subject": "create new patch",
+                     "topic": "test",
+                     "url": "http://localhost:8181/3"},
+          "changeKey": {"id": "I1"},
+          "eventCreatedOn": int(time.time()),
+          "newRev": "0ce5beac",
+          "patchSet": {
+                       "author": JDOE,
+                       "createdOn": int(time.time()) - 1000,
+                       "isDraft": False,
+                       "kind": "REWORK",
+                       "number": "3",
+                       "parents": ["1"],
+                       "ref": "refs/changes/77/1/1",
+                       "revision": "e3c8ac50",
+                       "sizeDeletions": -8,
+                       "sizeInsertions": 83,
+                       "uploader": JDOE},
+          "project": "foo",
+          "refName": "refs/heads/master",
+          "submitter": {"name": "CI",
+                        "username": "ci"},
+          "type": "change-merged"}
 
 
 class App(bottle.Bottle):
@@ -66,19 +127,24 @@ class App(bottle.Bottle):
         self.post('/make/event', callback=self._mk_event)
 
     def _mk_event(self):
-        if bottle.request.forms.get('type') == 'patchset-created':
-            data = dict(PATCHSET_CREATED)
+        events = {PATCHSET_CREATED['type']: PATCHSET_CREATED,
+                  RECHECK['type']: RECHECK,
+                  MERGED['type']: MERGED}
 
-            if 'project' in bottle.request.forms:
-                data['change']['project'] = bottle.request.forms['project']
-                data['project'] = bottle.request.forms['project']
+        if bottle.request.forms.get('type') not in events.keys():
+            return
 
-            if 'branch' in bottle.request.forms:
-                data['change']['branch'] = bottle.request.forms['branch']
+        data = dict(events[bottle.request.forms.get('type')])
+        if 'project' in bottle.request.forms:
+            data['change']['project'] = bottle.request.forms['project']
+            data['project'] = bottle.request.forms['project']
 
-            with open(FIFO, 'w') as fobj:
-                fobj.write(json.dumps(data))
-                fobj.write('\n')
+        if 'branch' in bottle.request.forms:
+            data['change']['branch'] = bottle.request.forms['branch']
+
+        with open(FIFO, 'w') as fobj:
+            fobj.write(json.dumps(data))
+            fobj.write('\n')
 
     def _documentation(self, whatever, params=None):
         return
@@ -122,7 +188,6 @@ class App(bottle.Bottle):
             return
 
         LOG.info(json.dumps(bottle.request.json))
-        LOG.info('Verified: %s', labels.get('Verified'))
 
 
 def main():
@@ -132,7 +197,7 @@ def main():
 
 if __name__ == "__main__":
     # development version, meant to be run as stand alone module, like
-    # python -m ferrit.http
+    # python -m ferrit.rest
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
     LOG.addHandler(handler)

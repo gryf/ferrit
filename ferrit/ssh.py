@@ -116,6 +116,7 @@ class SSHHandler(socketserver.StreamRequestHandler):
             LOG.debug("Writing %s to channel", data)
             channel.send(data)
             data = None
+        channel.close()
 
     def _version(self, channel):
         LOG.debug('sending version string')
@@ -181,13 +182,6 @@ def main():
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-k', '--key', default=KEY,
-                        help='Path to the private server key')
-    args = parser.parse_args()
-    KEY = args.key
-    os.mkfifo(FIFO)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] '
                                            '%(funcName)s:%(lineno)s - '
@@ -196,7 +190,17 @@ if __name__ == "__main__":
     LOG.setLevel(logging.DEBUG)
     LOG.addHandler(handler)
     LOG.debug('Start up development server')
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-k', '--key', default=KEY,
+                        help='Path to the private server key')
+    args = parser.parse_args()
+    KEY = args.key
+    LOG.debug('Creating FIFO: %s', FIFO)
+    os.mkfifo(FIFO)
+
     try:
         main()
     finally:
+        LOG.debug('Removing FIFO: %s', FIFO)
         os.unlink(FIFO)
