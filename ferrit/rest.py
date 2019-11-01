@@ -182,9 +182,9 @@ class App(bottle.Bottle):
                                            "target": "_blank"}]}}
 
     def _changes(self, project, branch, id, commit_id):
-        # We are looking for labels in the json
-        labels = bottle.request.json.get('labels', {})
-        if not labels:
+        # We are looking for result of the job, not the notification about
+        # starting the job.
+        if bottle.request.json.get('message', '').startswith('Build Started'):
             return
 
         LOG.info(json.dumps(bottle.request.json))

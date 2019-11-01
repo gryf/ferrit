@@ -4,6 +4,8 @@ import subprocess
 import time
 import unittest
 
+import requests
+
 
 class BaseTestCase(unittest.TestCase):
     def setUp(self):
@@ -25,3 +27,24 @@ class BaseTestCase(unittest.TestCase):
         os.killpg(self.process.pid, signal.SIGTERM)
         os.unlink('ferrit-http.log')
         os.unlink('ferrit-ssh.log')
+
+    def _send_and_get_response(self, event_type):
+        counter = 20
+        result = None
+        requests.post('http://localhost:8181/make/event',
+                      data='type=%s' % event_type)
+        while counter:
+            if not os.path.exists('ferrit-http.log'):
+                counter -= 1
+                time.sleep(1)
+                continue
+
+            with open('ferrit-http.log') as fobj:
+                result = fobj.read()
+                if not result:
+                    time.sleep(1)
+                    counter -= 1
+                else:
+                    break
+
+        return result
