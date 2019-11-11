@@ -30,7 +30,6 @@ setup(author="Roman Dobosz, Szymon Datko",
       keywords='ferrit',
       name='ferrit',
       packages=find_packages(include=['ferrit', 'ferrit.*']),
-      test_suite='tests',
       url='https://github.com/gryf/ferrit',
       version='0.0.1',
       zip_safe=False)
